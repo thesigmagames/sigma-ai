@@ -1,0 +1,232 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile and personalized workspace preferences stored privately per user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the account owner."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Display name chosen by the user."
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 254,
+          "description": "Verified account email address."
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["google", "apple", "email"],
+          "maxLength": 20,
+          "description": "Authentication provider used."
+        },
+        "avatarColor": {
+          "type": "string",
+          "maxLength": 24,
+          "description": "Hex accent color for the user avatar."
+        },
+        "accentTheme": {
+          "type": "string",
+          "enum": ["cobalt", "emerald", "amber", "amethyst"],
+          "maxLength": 24,
+          "description": "Selected workspace accent palette."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": ["uid", "name", "email", "provider", "avatarColor", "accentTheme", "createdAt", "updatedAt"]
+    },
+    "ChatFolder": {
+      "title": "ChatFolder",
+      "description": "User-defined category folder for organizing chat sessions.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "color": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "name", "color", "createdAt", "updatedAt"]
+    },
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "Metadata for an isolated user chat session.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "pinned": {
+          "type": "boolean"
+        },
+        "folderId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "systemPrompt": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "persona": {
+          "type": "string",
+          "enum": ["general", "coder", "writer", "tutor", "grok", "artist"],
+          "maxLength": 32
+        },
+        "language": {
+          "type": "string",
+          "enum": ["tr", "en", "de", "es"],
+          "maxLength": 10
+        },
+        "messageCount": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "title",
+        "pinned",
+        "folderId",
+        "systemPrompt",
+        "persona",
+        "language",
+        "messageCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Individual chat message stored inside a chat session subcollection.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "chatId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "assistant"],
+          "maxLength": 16
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 40000
+        },
+        "time": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "reaction": {
+          "type": "string",
+          "enum": ["like", "dislike", "none"],
+          "maxLength": 16
+        },
+        "edited": {
+          "type": "boolean"
+        },
+        "isStarred": {
+          "type": "boolean"
+        },
+        "engineUsed": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerId", "chatId", "role", "text", "time", "reaction", "edited", "isStarred", "engineUsed", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user account profile containing PII (email, name) and workspace accent preferences."
+    },
+    "/users/{userId}/folders/{folderId}": {
+      "schema": { "$ref": "#/entities/ChatFolder" },
+      "description": "User-specific chat folders owned strictly by {userId}."
+    },
+    "/users/{userId}/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/ChatSession" },
+      "description": "User-specific AI chat session documents owned strictly by {userId}."
+    },
+    "/users/{userId}/chats/{chatId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Ordered messages inside a user chat session, gated on the parent chat ownership."
+    }
+  }
+}

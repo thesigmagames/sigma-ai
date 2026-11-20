@@ -1,0 +1,6 @@
+{
+  "name": "Sigma AI • The Sigma Games",
+  "description": "Gemini ve API'siz yerel tarayıcı motoruyla çalışan; görsel stüdyosu, canlı kod sandbox'ı, çoklu aktarım ve sesli sohbet özellikli yapay zeka platformu.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

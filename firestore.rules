@@ -1,0 +1,213 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation Blueprint: UserProfile
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'provider', 'avatarColor', 'accentTheme', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'name', 'email', 'provider', 'avatarColor', 'accentTheme', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.provider in ['google', 'apple', 'email']
+        && data.avatarColor is string && data.avatarColor.size() >= 3 && data.avatarColor.size() <= 24
+        && data.accentTheme in ['cobalt', 'emerald', 'amber', 'amethyst']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: ChatFolder
+    function isValidChatFolder(data, userId, folderId) {
+      return data.keys().hasAll(['id', 'ownerId', 'name', 'color', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'name', 'color', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.id == folderId
+        && isValidId(data.ownerId)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 60
+        && data.color is string && data.color.size() >= 3 && data.color.size() <= 24
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: ChatSession
+    function isValidChatSession(data, userId, chatId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'title', 'pinned', 'folderId', 'systemPrompt',
+          'persona', 'language', 'messageCount', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'title', 'pinned', 'folderId', 'systemPrompt',
+          'persona', 'language', 'messageCount', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == chatId
+        && isValidId(data.ownerId)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.pinned is bool
+        && data.folderId is string && data.folderId.size() <= 128
+        && data.systemPrompt is string && data.systemPrompt.size() <= 4000
+        && data.persona in ['general', 'coder', 'writer', 'tutor', 'grok', 'artist']
+        && data.language in ['tr', 'en', 'de', 'es']
+        && data.messageCount is number && data.messageCount >= 0 && data.messageCount <= 5000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: ChatMessage
+    function isValidChatMessage(data, userId, chatId, messageId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'chatId', 'role', 'text', 'time',
+          'reaction', 'edited', 'isStarred', 'engineUsed', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'chatId', 'role', 'text', 'time',
+          'reaction', 'edited', 'isStarred', 'engineUsed', 'createdAt'
+        ])
+        && isValidId(data.id)
+        && data.id == messageId
+        && isValidId(data.ownerId)
+        && data.ownerId == userId
+        && data.ownerId == request.auth.uid
+        && isValidId(data.chatId)
+        && data.chatId == chatId
+        && data.role in ['user', 'assistant']
+        && data.text is string && data.text.size() <= 40000
+        && data.time is string && data.time.size() <= 32
+        && data.reaction in ['like', 'dislike', 'none']
+        && data.edited is bool
+        && data.isStarred is bool
+        && data.engineUsed is string && data.engineUsed.size() <= 120
+        && data.createdAt is timestamp;
+    }
+
+    // Collection: /users/{userId}
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'email', 'avatarColor', 'accentTheme', 'updatedAt'
+        ]);
+      allow delete: if isValidId(userId) && isOwner(userId);
+
+      // Subcollection: /users/{userId}/folders/{folderId}
+      match /folders/{folderId} {
+        allow get: if isValidId(userId) && isValidId(folderId) && isOwner(userId);
+        allow list: if isOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(folderId)
+          && isOwner(userId)
+          && isValidChatFolder(incoming(), userId, folderId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(folderId)
+          && isOwner(userId)
+          && isValidChatFolder(incoming(), userId, folderId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'color', 'updatedAt']);
+        allow delete: if isValidId(userId) && isValidId(folderId) && isOwner(userId);
+      }
+
+      // Subcollection: /users/{userId}/chats/{chatId}
+      match /chats/{chatId} {
+        allow get: if isValidId(userId) && isValidId(chatId) && isOwner(userId);
+        allow list: if isOwner(userId) && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(chatId)
+          && isOwner(userId)
+          && isValidChatSession(incoming(), userId, chatId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(chatId)
+          && isOwner(userId)
+          && isValidChatSession(incoming(), userId, chatId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'pinned', 'folderId', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['systemPrompt', 'persona', 'language', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'messageCount', 'updatedAt'])
+          );
+        allow delete: if isValidId(userId) && isValidId(chatId) && isOwner(userId);
+
+        // Subcollection: /users/{userId}/chats/{chatId}/messages/{messageId}
+        match /messages/{messageId} {
+          allow get: if isValidId(userId) && isValidId(chatId) && isValidId(messageId)
+            && isOwner(userId)
+            && exists(/databases/$(database)/documents/users/$(userId)/chats/$(chatId));
+          allow list: if isOwner(userId) && existing().ownerId == request.auth.uid;
+          allow create: if isValidId(userId) && isValidId(chatId) && isValidId(messageId)
+            && isOwner(userId)
+            && isValidChatMessage(incoming(), userId, chatId, messageId)
+            && incoming().createdAt == request.time
+            && get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.ownerId == request.auth.uid;
+          allow update: if isValidId(userId) && isValidId(chatId) && isValidId(messageId)
+            && isOwner(userId)
+            && isValidChatMessage(incoming(), userId, chatId, messageId)
+            && incoming().ownerId == existing().ownerId
+            && incoming().chatId == existing().chatId
+            && incoming().id == existing().id
+            && incoming().createdAt == existing().createdAt
+            && (
+              incoming().diff(existing()).affectedKeys().hasOnly(['text', 'edited']) ||
+              incoming().diff(existing()).affectedKeys().hasOnly(['reaction']) ||
+              incoming().diff(existing()).affectedKeys().hasOnly(['isStarred'])
+            )
+            && get(/databases/$(database)/documents/users/$(userId)/chats/$(chatId)).data.ownerId == request.auth.uid;
+          allow delete: if isValidId(userId) && isValidId(chatId) && isValidId(messageId)
+            && isOwner(userId)
+            && exists(/databases/$(database)/documents/users/$(userId)/chats/$(chatId));
+        }
+      }
+    }
+  }
+}
