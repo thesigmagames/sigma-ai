@@ -50,6 +50,8 @@ export interface ChatMessage {
   generatedImage?: GeneratedImageItem;
   sources?: GroundingSource[];
   engineUsed?: string;
+  thoughts?: string;
+  thinkingMs?: number;
   deepThinking?: boolean;
   webSearch?: boolean;
   latencyMs?: number;

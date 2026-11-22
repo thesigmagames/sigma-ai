@@ -37,7 +37,6 @@ import {
   serverTimestamp,
   type Firestore
 } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
 import type {
   AccentTheme,
   AuthProvider,
@@ -73,14 +72,72 @@ export interface FirestoreErrorInfo {
   };
 }
 
+interface FirebaseClientConfig {
+  projectId?: string;
+  appId?: string;
+  apiKey?: string;
+  authDomain?: string;
+  firestoreDatabaseId?: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  measurementId?: string;
+}
+
+function resolveFirebaseConfig(): FirebaseClientConfig | null {
+  try {
+    const localModules = import.meta.glob<{ default: FirebaseClientConfig }>(
+      '../../firebase-applet-config.json',
+      { eager: true }
+    );
+    const localCfg = Object.values(localModules)[0]?.default;
+    if (localCfg && localCfg.apiKey && localCfg.projectId) {
+      return localCfg;
+    }
+  } catch {
+    // Statik GitHub Pages ortamında yerel dosya yoksa env fallback'e geç
+  }
+
+  try {
+    const env = (import.meta as any)?.env || {};
+    if (typeof env.VITE_FIREBASE_CONFIG_JSON === 'string' && env.VITE_FIREBASE_CONFIG_JSON.trim()) {
+      const parsed = JSON.parse(env.VITE_FIREBASE_CONFIG_JSON) as FirebaseClientConfig;
+      if (parsed && parsed.apiKey && parsed.projectId) {
+        return parsed;
+      }
+    }
+    if (env.VITE_FIREBASE_API_KEY && env.VITE_FIREBASE_PROJECT_ID) {
+      return {
+        apiKey: String(env.VITE_FIREBASE_API_KEY),
+        projectId: String(env.VITE_FIREBASE_PROJECT_ID),
+        authDomain: env.VITE_FIREBASE_AUTH_DOMAIN ? String(env.VITE_FIREBASE_AUTH_DOMAIN) : undefined,
+        appId: env.VITE_FIREBASE_APP_ID ? String(env.VITE_FIREBASE_APP_ID) : undefined,
+        firestoreDatabaseId: env.VITE_FIREBASE_DATABASE_ID ? String(env.VITE_FIREBASE_DATABASE_ID) : undefined,
+        storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET ? String(env.VITE_FIREBASE_STORAGE_BUCKET) : undefined,
+        messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID
+          ? String(env.VITE_FIREBASE_MESSAGING_SENDER_ID)
+          : undefined
+      };
+    }
+  } catch {
+    // Env parse error
+  }
+  return null;
+}
+
+const firebaseConfig = resolveFirebaseConfig();
+
 let appInstance: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let dbInstance: Firestore | null = null;
 
 try {
-  appInstance = initializeApp(firebaseConfig);
-  dbInstance = getFirestore(appInstance, firebaseConfig.firestoreDatabaseId);
-  authInstance = getAuth(appInstance);
+  if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId) {
+    appInstance = initializeApp(firebaseConfig);
+    dbInstance = firebaseConfig.firestoreDatabaseId
+      ? getFirestore(appInstance, firebaseConfig.firestoreDatabaseId)
+      : getFirestore(appInstance);
+    authInstance = getAuth(appInstance);
+  }
 } catch (err) {
   console.warn('Firebase initialization notice:', err);
 }

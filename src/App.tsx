@@ -321,11 +321,13 @@ export default function App() {
   });
 
   const [selectedModelId, setSelectedModelId] = useState<string>(() => {
-    return localStorage.getItem(PREF_KEYS.MODEL) || LOCAL_MODELS[0].id;
+    const saved = localStorage.getItem(PREF_KEYS.MODEL);
+    if (saved && LOCAL_MODELS.some((m) => m.id === saved)) return saved;
+    return LOCAL_MODELS[0].id;
   });
   const [modelStatus, setModelStatus] = useState<ModelStatus>('ready');
   const [modelProgress, setModelProgress] = useState<number>(100);
-  const [modelStage, setModelStage] = useState<string>('Yerel çıkarım motoru hazır.');
+  const [modelStage, setModelStage] = useState<string>('Sigma R1 Ultra akıl yürütme motoru hazır.');
 
   const [engineMode, setEngineMode] = useState<AiEngineMode>(() => {
     const saved = localStorage.getItem(PREF_KEYS.ENGINE_MODE);
@@ -358,7 +360,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [streamingThoughts, setStreamingThoughts] = useState('');
   const [streamingText, setStreamingText] = useState('');
+  const [expandedThoughts, setExpandedThoughts] = useState<Record<string, boolean>>({});
   const [isListening, setIsListening] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
@@ -919,6 +923,7 @@ export default function App() {
     }
 
     setIsGenerating(true);
+    setStreamingThoughts('');
     setStreamingText('');
     streamCancelRef.current = false;
 
@@ -986,9 +991,25 @@ export default function App() {
       });
 
       if (result.usedFallback) {
-        showToast('Gemini yerine API’siz Yerel Motor yanıt verdi.', 'info');
+        showToast('Gemini yerine Sigma Ultra Yerel Akıl Motoru yanıt verdi.', 'info');
       }
 
+      // 1. Önce düşünce zincirini (Chain-of-Thought) canlı aktar
+      if (result.thoughts) {
+        const thoughtTokens = result.thoughts.split(/(\s+)/);
+        let thoughtAcc = '';
+        const tStep = thoughtTokens.length > 100 ? 6 : 3;
+        for (let idx = 0; idx < thoughtTokens.length; idx++) {
+          if (streamCancelRef.current) break;
+          thoughtAcc += thoughtTokens[idx];
+          if (idx % tStep === 0 || idx === thoughtTokens.length - 1) {
+            setStreamingThoughts(thoughtAcc);
+            await new Promise((r) => setTimeout(r, 8));
+          }
+        }
+      }
+
+      // 2. Ardından nihai cevabı canlı akıt
       const tokens = result.text.split(/(\s+)/);
       let accumulated = '';
       const stepSize = tokens.length > 180 ? 4 : 2;
@@ -1005,10 +1026,16 @@ export default function App() {
       const aiMsg = createMessage('assistant', finalContent, formatTimeNow(), {
         sources: result.sources,
         engineUsed: result.engineUsed,
+        thoughts: result.thoughts,
+        thinkingMs: result.thinkingMs,
         deepThinking,
         webSearch,
         latencyMs: result.latencyMs
       });
+
+      if (result.thoughts) {
+        setExpandedThoughts((prev) => ({ ...prev, [aiMsg.id]: true }));
+      }
 
       const finalMessages = [...workingMessages, aiMsg];
       setChats((prevChats) => {
@@ -1035,6 +1062,7 @@ export default function App() {
       console.error('Mesaj üretim hatası:', err);
       showToast('Yanıt üretilirken beklenmeyen bir hata oluştu.', 'error');
     } finally {
+      setStreamingThoughts('');
       setStreamingText('');
       setIsGenerating(false);
     }
@@ -2220,11 +2248,47 @@ export default function App() {
                               </div>
                             </div>
                           ) : (
-                            <MarkdownRenderer
-                              content={msg.text}
-                              isUser={isUser}
-                              onPreviewCode={handlePreviewCode}
-                            />
+                            <div className="space-y-2.5">
+                              {!isUser && msg.thoughts && (
+                                <div className="rounded-xl border border-slate-300/80 dark:border-slate-700/90 bg-white/70 dark:bg-slate-900/75 overflow-hidden">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setExpandedThoughts((prev) => ({
+                                        ...prev,
+                                        [msg.id]: !prev[msg.id]
+                                      }))
+                                    }
+                                    className="w-full px-3 py-1.5 flex items-center justify-between gap-2 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
+                                  >
+                                    <span className="flex items-center gap-1.5">
+                                      <i className="fa-solid fa-brain sigma-accent-text text-[11px]" />
+                                      <span>Düşünme Süreci</span>
+                                      {msg.thinkingMs && (
+                                        <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">
+                                          · {(msg.thinkingMs / 1000).toFixed(2)}s
+                                        </span>
+                                      )}
+                                    </span>
+                                    <i
+                                      className={`fa-solid ${
+                                        expandedThoughts[msg.id] ? 'fa-chevron-up' : 'fa-chevron-down'
+                                      } text-[10px] text-slate-400`}
+                                    />
+                                  </button>
+                                  {expandedThoughts[msg.id] && (
+                                    <div className="px-3 py-2 border-t border-slate-200/80 dark:border-slate-700/70 text-xs text-slate-600 dark:text-slate-300/90 leading-relaxed">
+                                      <MarkdownRenderer content={msg.thoughts} onPreviewCode={handlePreviewCode} />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              <MarkdownRenderer
+                                content={msg.text}
+                                isUser={isUser}
+                                onPreviewCode={handlePreviewCode}
+                              />
+                            </div>
                           )}
 
                           {msg.generatedImage && (
@@ -2434,10 +2498,22 @@ export default function App() {
 
                 {isGenerating && (
                   <div className="flex flex-col items-start">
-                    <div className="max-w-[90%] sm:max-w-[82%] rounded-2xl rounded-bl-sm px-4 py-3 bg-slate-200/80 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/70 dark:border-slate-700/70">
+                    <div className="max-w-[90%] sm:max-w-[82%] rounded-2xl rounded-bl-sm px-4 py-3 bg-slate-200/80 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/70 dark:border-slate-700/70 space-y-2.5">
+                      {streamingThoughts && (
+                        <div className="rounded-xl border border-blue-300/70 dark:border-blue-800/70 bg-white/75 dark:bg-slate-900/85 overflow-hidden">
+                          <div className="px-3 py-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 dark:text-blue-300 border-b border-blue-200/60 dark:border-blue-800/60">
+                            <i className="fa-solid fa-brain animate-pulse text-[11px]" />
+                            <span>Akıl Yürütülüyor...</span>
+                          </div>
+                          <div className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                            <MarkdownRenderer content={streamingThoughts} onPreviewCode={handlePreviewCode} />
+                          </div>
+                        </div>
+                      )}
+
                       {streamingText ? (
                         <MarkdownRenderer content={streamingText} onPreviewCode={handlePreviewCode} />
-                      ) : (
+                      ) : !streamingThoughts ? (
                         <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
                           <i className="fa-solid fa-spinner fa-spin" />
                           <span>
@@ -2445,10 +2521,10 @@ export default function App() {
                               ? 'Derin düşünce analizi yürütülüyor...'
                               : webSearch
                               ? 'Web kaynakları taranıyor...'
-                              : 'Yanıt hazırlanıyor...'}
+                              : 'Düşünce zinciri hazırlanıyor...'}
                           </span>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 )}

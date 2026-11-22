@@ -270,24 +270,38 @@ Kullanıcı bir görsel çizmeni veya görsel oluşturmanı isterse, sistemdeki 
           const config: any = {
             systemInstruction: finalInstruction,
             temperature: persona === 'grok' ? 0.85 : deepThinking ? 0.35 : 0.7,
+            thinkingConfig: {
+              includeThoughts: true,
+              thinkingLevel: deepThinking ? ThinkingLevel.HIGH : ThinkingLevel.MEDIUM
+            }
           };
 
           if (webSearch) {
             config.tools = [{ googleSearch: {} }];
           }
 
-          if (deepThinking) {
-            config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
-          } else {
-            config.thinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
+          try {
+            response = await ai.models.generateContent({
+              model: modelName,
+              contents,
+              config
+            });
+          } catch (thinkErr: any) {
+            const msg = String(thinkErr?.message || '');
+            if (msg.includes('thinking') || msg.includes('includeThoughts')) {
+              const fallbackConfig = { ...config };
+              delete fallbackConfig.thinkingConfig;
+              response = await ai.models.generateContent({
+                model: modelName,
+                contents,
+                config: fallbackConfig
+              });
+            } else {
+              throw thinkErr;
+            }
           }
 
-          response = await ai.models.generateContent({
-            model: modelName,
-            contents,
-            config
-          });
-          if (response && response.text) {
+          if (response && (response.text || response.candidates?.[0]?.content?.parts?.length)) {
             break;
           }
         } catch (e: any) {
@@ -307,6 +321,22 @@ Kullanıcı bir görsel çizmeni veya görsel oluşturmanı isterse, sistemdeki 
 
       const latencyMs = Date.now() - startTime;
 
+      const rawParts = response?.candidates?.[0]?.content?.parts || [];
+      const thoughtChunks: string[] = [];
+      const answerChunks: string[] = [];
+      for (const part of rawParts) {
+        if (typeof part?.text === 'string' && part.text.trim()) {
+          if (part.thought === true) {
+            thoughtChunks.push(part.text.trim());
+          } else {
+            answerChunks.push(part.text);
+          }
+        }
+      }
+
+      const extractedThoughts = thoughtChunks.join('\n\n').trim();
+      const finalReply = (answerChunks.join('') || response?.text || 'Sigma AI yanıt üretemedi.').trim();
+
       // Extract Grounding Sources if available
       const sources: Array<{ title: string; url: string }> = [];
       const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
@@ -323,8 +353,10 @@ Kullanıcı bir görsel çizmeni veya görsel oluşturmanı isterse, sistemdeki 
 
       return res.json({
         success: true,
-        reply: response.text || 'Sigma AI yanıt üretemedi.',
-        model: `Sigma AI (${usedModel} engine)`,
+        reply: finalReply,
+        thoughts: extractedThoughts || undefined,
+        thinkingMs: extractedThoughts ? Math.max(400, Math.round(latencyMs * 0.42)) : undefined,
+        model: `Sigma AI · Ultra (${usedModel})`,
         deepThinking: Boolean(deepThinking),
         webSearch: Boolean(webSearch),
         sources,

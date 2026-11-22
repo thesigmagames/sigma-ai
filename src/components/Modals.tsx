@@ -297,7 +297,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                Yerel Model Seçimi (@xenova/transformers)
+                Sigma Ultra Reasoning Motoru &amp; Yerel Modeller
               </h3>
               <span className="text-xs text-slate-500 dark:text-slate-400">
                 {modelStatus === 'ready' ? 'Hazır' : modelStatus === 'loading' ? 'Yükleniyor...' : 'Beklemede'}
