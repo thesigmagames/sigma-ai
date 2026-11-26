@@ -87,6 +87,36 @@ const CODE_TEMPLATES = [
   </script>
 </body>
 </html>`
+  },
+  {
+    id: 'paint',
+    label: 'Çizim Tahtası',
+    code: `<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: #0f172a; color: #fff; font-family: system-ui, sans-serif; }
+    .bar { display: flex; gap: 8px; align-items: center; }
+    canvas { background: #fff; border-radius: 12px; cursor: crosshair; touch-action: none; }
+    button { padding: 6px 12px; border: 0; border-radius: 8px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <input type="color" id="col" value="#2563eb" />
+    <input type="range" id="sz" min="2" max="24" value="6" />
+    <button onclick="ctx.clearRect(0,0,c.width,c.height)">Temizle</button>
+  </div>
+  <canvas id="c" width="380" height="280"></canvas>
+  <script>
+    const c = document.getElementById('c'), ctx = c.getContext('2d');
+    let d = false; ctx.lineCap = 'round';
+    c.onpointerdown = e => { d = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
+    c.onpointermove = e => { if (!d) return; ctx.strokeStyle = col.value; ctx.lineWidth = sz.value; ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); };
+    window.onpointerup = () => { d = false; };
+  </script>
+</body>
+</html>`
   }
 ];
 
@@ -315,6 +345,7 @@ export const CodeStudio: React.FC<CodeStudioProps> = ({ initialCode, onSendToCha
   const [subMode, setSubMode] = useState<StudioSubMode>('sandbox');
   const [code, setCode] = useState<string>(initialCode || CODE_TEMPLATES[0].code);
   const [runVersion, setRunVersion] = useState(0);
+  const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
 
   // 2B Oyun Yapıcı parametreleri
   const [gameTpl, setGameTpl] = useState<GameTemplateId>('platform');
@@ -639,16 +670,43 @@ export const CodeStudio: React.FC<CodeStudioProps> = ({ initialCode, onSendToCha
             </div>
 
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden flex flex-col">
-              <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-                Canlı Çalışma Alanı
+              <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
+                <span>Canlı Çalışma Alanı</span>
+                <div className="flex items-center gap-1">
+                  {[
+                    { id: 'desktop' as const, icon: 'fa-desktop', title: 'Masaüstü (%100)' },
+                    { id: 'tablet' as const, icon: 'fa-tablet-screen-button', title: 'Tablet (768px)' },
+                    { id: 'mobile' as const, icon: 'fa-mobile-screen-button', title: 'Mobil (375px)' }
+                  ].map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      title={v.title}
+                      onClick={() => setViewport(v.id)}
+                      className={`w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-colors ${
+                        viewport === v.id
+                          ? 'sigma-accent-bg text-white'
+                          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <i className={`fa-solid ${v.icon}`} />
+                    </button>
+                  ))}
+                </div>
               </div>
-              <iframe
-                key={runVersion}
-                title="Sigma Kod Sandbox"
-                srcDoc={code}
-                sandbox="allow-scripts"
-                className="flex-1 w-full min-h-[450px] bg-white"
-              />
+              <div className="flex-1 bg-slate-100 dark:bg-slate-950 flex justify-center p-2 overflow-auto">
+                <iframe
+                  key={runVersion}
+                  title="Sigma Kod Sandbox"
+                  srcDoc={code}
+                  sandbox="allow-scripts allow-modals"
+                  style={{
+                    width: viewport === 'mobile' ? '375px' : viewport === 'tablet' ? '768px' : '100%',
+                    maxWidth: '100%'
+                  }}
+                  className="h-full min-h-[450px] bg-white rounded-lg border border-slate-200 dark:border-slate-800 transition-all duration-200"
+                />
+              </div>
             </div>
           </div>
         )}

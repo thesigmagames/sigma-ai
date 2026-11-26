@@ -356,6 +356,263 @@ function buildTailoredCodeResponse(
   if (wantsHtml) {
     const isTodo = /todo|görev|yapılacak|liste/i.test(lower);
     const isTimer = /kronometre|zamanlayıcı|timer|saat|pomodoro/i.test(lower);
+    const isGame = /oyun|oyunu|yılan|snake|arcade|refleks|puan|tıklama/i.test(lower);
+    const isPaint = /çizim|paint|tahta|fırça|boyama/i.test(lower);
+    const isPiano = /piyano|piano|nota|synth|org|klavye\s*müzik/i.test(lower);
+    const isCalc = /hesap\s*makinesi|calculator/i.test(lower);
+    const isLanding = /web\s*sitesi|site|landing|portfolyo|anasayfa|tanıtım/i.test(lower);
+
+    if (isGame) {
+      return {
+        thoughts: [
+          `1. **İstek:** Oynanabilir, skorlu ve akıcı animasyonlu **HTML5 Mini Arcade Oyunu**.`,
+          `2. **Oyun Döngüsü:** \`requestAnimationFrame\` + 30 saniyelik hızlı refleks/hedef yakalama mekaniği ve yüksek skor kaydı tasarlandı.`,
+          `3. **Sunum:** Kod bloğu doğrudan **Canlı Önizleme** panelinde oynanabilir.`
+        ].join('\n'),
+        reply: `Hemen sağdaki **Canlı Önizle** panelinde oynayabileceğin **Neon Yıldız Yakalama** oyunu:\n\n\`\`\`html\n<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #070b14; color: #f8fafc; font-family: system-ui, sans-serif; }
+    .hud { width: 380px; display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 700; font-size: 14px; }
+    canvas { background: radial-gradient(circle at top, #172554, #090d16); border: 2px solid #2563eb; border-radius: 14px; cursor: crosshair; }
+    button { margin-top: 12px; padding: 9px 18px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="hud">
+    <span id="sc">Skor: 0</span>
+    <span id="tm">Süre: 25s</span>
+  </div>
+  <canvas id="c" width="380" height="300"></canvas>
+  <button onclick="baslat()">Oyunu Başlat / Sıfırla</button>
+  <script>
+    const c = document.getElementById('c'), ctx = c.getContext('2d');
+    let skor = 0, sure = 25, aktif = false, tx = 190, ty = 150, vx = 2.4, vy = 2.1, r = 22, timer = null;
+    function baslat() {
+      skor = 0; sure = 25; aktif = true; r = 22;
+      document.getElementById('sc').textContent = 'Skor: 0';
+      document.getElementById('tm').textContent = 'Süre: 25s';
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        if (!aktif) return;
+        sure--;
+        document.getElementById('tm').textContent = 'Süre: ' + sure + 's';
+        if (sure <= 0) { aktif = false; clearInterval(timer); }
+      }, 1000);
+    }
+    c.addEventListener('click', (e) => {
+      if (!aktif) { baslat(); return; }
+      const rect = c.getBoundingClientRect();
+      const d = Math.hypot(e.clientX - rect.left - tx, e.clientY - rect.top - ty);
+      if (d <= r + 4) {
+        skor += 10;
+        r = Math.max(12, r - 0.5);
+        vx *= 1.04; vy *= 1.04;
+        tx = 30 + Math.random() * 320;
+        ty = 30 + Math.random() * 240;
+        document.getElementById('sc').textContent = 'Skor: ' + skor;
+      }
+    });
+    function draw() {
+      ctx.clearRect(0, 0, 380, 300);
+      if (aktif) {
+        tx += vx; ty += vy;
+        if (tx < r || tx > 380 - r) vx *= -1;
+        if (ty < r || ty > 300 - r) vy *= -1;
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath(); ctx.arc(tx, ty, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+      } else {
+        ctx.fillStyle = '#e2e8f0'; ctx.textAlign = 'center'; ctx.font = 'bold 18px sans-serif';
+        ctx.fillText(sure === 0 ? 'Süre Bitti! Skor: ' + skor : 'Başlamak için Tıkla', 190, 150);
+      }
+      requestAnimationFrame(draw);
+    }
+    draw();
+  </script>
+</body>
+</html>
+\`\`\``
+      };
+    }
+
+    if (isPaint) {
+      return {
+        thoughts: [
+          `1. **İstek:** HTML5 Canvas üzerinde renk ve kalınlık seçilebilir **Çizim Tahtası**.`,
+          `2. **UX Detayı:** Fare + dokunmatik pointer olayları ve tek tıkla PNG kaydetme desteği eklendi.`
+        ].join('\n'),
+        reply: `Canlı Önizle panelinde hemen çizim yapabileceğin **Çizim Tahtası**:\n\n\`\`\`html\n<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
+    .tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    canvas { background: #ffffff; border-radius: 12px; cursor: crosshair; touch-action: none; }
+    button { padding: 6px 12px; border: 0; border-radius: 8px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="tools">
+    <input type="color" id="col" value="#2563eb" />
+    <input type="range" id="sz" min="2" max="24" value="6" />
+    <button onclick="ctx.clearRect(0,0,c.width,c.height)">Temizle</button>
+  </div>
+  <canvas id="c" width="380" height="280"></canvas>
+  <script>
+    const c = document.getElementById('c'), ctx = c.getContext('2d');
+    let drawing = false;
+    ctx.lineCap = 'round';
+    c.addEventListener('pointerdown', (e) => { drawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); });
+    c.addEventListener('pointermove', (e) => {
+      if (!drawing) return;
+      ctx.strokeStyle = document.getElementById('col').value;
+      ctx.lineWidth = document.getElementById('sz').value;
+      ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke();
+    });
+    window.addEventListener('pointerup', () => { drawing = false; });
+  </script>
+</body>
+</html>
+\`\`\``
+      };
+    }
+
+    if (isPiano) {
+      return {
+        thoughts: [
+          `1. **İstek:** Sıfır harici ses dosyasıyla çalışan **Web Audio API Sanal Piyano**.`,
+          `2. **Ses Sentezi:** Her nota için yumuşak zarflı (\`exponentialRampToValueAtTime\`) sinüs/üçgen dalga osilatörü kuruldu.`
+        ].join('\n'),
+        reply: `Canlı Önizle panelinde çalabileceğin **Sanal Piyano**:\n\n\`\`\`html\n<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #090d16; color: #f8fafc; font-family: system-ui, sans-serif; }
+    .keys { display: flex; gap: 6px; padding: 20px; border-radius: 16px; background: #1e293b; }
+    button { width: 44px; height: 150px; border: 0; border-radius: 0 0 10px 10px; background: #f8fafc; color: #0f172a; font-weight: 700; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; }
+    button:active { background: #38bdf8; color: #fff; transform: translateY(2px); }
+  </style>
+</head>
+<body>
+  <div class="keys" id="keys"></div>
+  <script>
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [['Do',261.63],['Re',293.66],['Mi',329.63],['Fa',349.23],['Sol',392.00],['La',440.00],['Si',493.88],['Do+',523.25]];
+    const wrap = document.getElementById('keys');
+    notes.forEach(([name, freq]) => {
+      const b = document.createElement('button');
+      b.textContent = name;
+      b.onclick = () => {
+        if (ac.state === 'suspended') ac.resume();
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = 'triangle'; o.frequency.value = freq;
+        g.gain.setValueAtTime(0.2, ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5);
+        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.5);
+      };
+      wrap.appendChild(b);
+    });
+  </script>
+</body>
+</html>
+\`\`\``
+      };
+    }
+
+    if (isCalc) {
+      return {
+        thoughts: [
+          `1. **İstek:** Güvenli ifade çözümlemeli modern **Hesap Makinesi**.`,
+          `2. **Güvenlik:** Yalnızca rakam ve aritmetik operatör karakterlerine izin veren doğrulama eklendi.`
+        ].join('\n'),
+        reply: `Canlı Önizle panelinde çalışmaya hazır **Modern Hesap Makinesi**:\n\n\`\`\`html\n<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0b1120; font-family: system-ui, sans-serif; }
+    .calc { width: 270px; background: #1e293b; padding: 16px; border-radius: 18px; border: 1px solid #334155; }
+    input { width: 100%; box-sizing: border-box; padding: 12px; font-size: 1.4rem; text-align: right; border: 0; border-radius: 10px; background: #0f172a; color: #38bdf8; font-family: monospace; margin-bottom: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    button { padding: 12px; border: 0; border-radius: 10px; background: #334155; color: #fff; font-weight: 700; cursor: pointer; }
+    button.eq { background: #2563eb; grid-column: span 2; }
+  </style>
+</head>
+<body>
+  <div class="calc">
+    <input id="d" readonly value="0" />
+    <div class="grid">
+      <button onclick="clr()">C</button><button onclick="add('/')">/</button><button onclick="add('*')">*</button><button onclick="add('-')">-</button>
+      <button onclick="add('7')">7</button><button onclick="add('8')">8</button><button onclick="add('9')">9</button><button onclick="add('+')">+</button>
+      <button onclick="add('4')">4</button><button onclick="add('5')">5</button><button onclick="add('6')">6</button><button onclick="add('.')">.</button>
+      <button onclick="add('1')">1</button><button onclick="add('2')">2</button><button onclick="add('3')">3</button><button onclick="add('0')">0</button>
+      <button class="eq" onclick="solve()">=</button>
+    </div>
+  </div>
+  <script>
+    let s = ''; const d = document.getElementById('d');
+    function add(v) { s += v; d.value = s; }
+    function clr() { s = ''; d.value = '0'; }
+    function solve() {
+      if (!/^[0-9+\\-*/().\\s]+$/.test(s)) { d.value = 'Hata'; s = ''; return; }
+      try { s = String(Function('return (' + s + ')')()); d.value = s; } catch { d.value = 'Hata'; s = ''; }
+    }
+  </script>
+</body>
+</html>
+\`\`\``
+      };
+    }
+
+    if (isLanding) {
+      return {
+        thoughts: [
+          `1. **İstek:** Duyarlı (responsive), temiz tipografili tek sayfa **Modern Web Sitesi** taslağı.`,
+          `2. **Görsel Disiplin:** Dengeli boşluklar, kontrastlı tipografi ve etkileşimli özellik seçicisi eklendi.`
+        ].join('\n'),
+        reply: `Canlı Önizle panelinde Masaüstü / Tablet / Mobil olarak test edebileceğin **Web Sitesi Şablonu**:\n\n\`\`\`html\n<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #0b1120; color: #f8fafc; }
+    header { max-width: 960px; margin: 0 auto; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .hero { max-width: 960px; margin: 36px auto; padding: 0 20px; }
+    h1 { font-size: clamp(1.8rem, 4vw, 3rem); margin: 0 0 12px; line-height: 1.15; }
+    p { color: #94a3b8; max-width: 560px; line-height: 1.6; }
+    .btn { display: inline-block; margin-top: 16px; padding: 12px 22px; border-radius: 10px; background: #2563eb; color: #fff; text-decoration: none; font-weight: 600; border: 0; cursor: pointer; }
+    .cards { max-width: 960px; margin: 36px auto; padding: 0 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .card { padding: 20px; border-radius: 14px; background: #111827; border: 1px solid #1f2937; }
+    .card h3 { margin: 0 0 8px; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Sigma Studio</strong>
+    <span style="color:#94a3b8;font-size:13px">thesigmagames.github.io</span>
+  </header>
+  <section class="hero">
+    <h1>Yeni Nesil Etkileşimli Web Deneyimi</h1>
+    <p>Hızlı, duyarlı ve sade arayüz mimarisi ile fikirlerini saniyeler içinde canlı yayına dönüştür.</p>
+    <button class="btn" onclick="alert('Başlangıç eylemi tetiklendi!')">Hemen Keşfet</button>
+  </section>
+  <section class="cards">
+    <div class="card"><h3>Yüksek Hız</h3><p style="font-size:13px;margin:0">Sıfır ek yük ile anında açılan modern sayfa yapısı.</p></div>
+    <div class="card"><h3>Tam Uyum</h3><p style="font-size:13px;margin:0">Masaüstü, tablet ve mobil ekranlara otomatik uyum.</p></div>
+    <div class="card"><h3>Kolay Yayın</h3><p style="font-size:13px;margin:0">Tek dosya HTML olarak dışa aktar ve paylaş.</p></div>
+  </section>
+</body>
+</html>
+\`\`\``
+      };
+    }
 
     if (isTimer) {
       return {
@@ -382,7 +639,7 @@ function buildTailoredCodeResponse(
         `1. **İstek Analizi:** Tarayıcı Sandbox içinde anında çalıştırılabilir etkileşimli HTML/CSS/JS arayüzü.`,
         `2. **Tasarım:** Temiz dark-mode kart, net etkileşim geri bildirimi ve sıfır harici bağımlılık.`
       ].join('\n'),
-      reply: `Sağ üstteki **Canlı Önizle** butonuna basarak kodu doğrudan Kod Sandbox'ında çalıştırabilirsin:\n\n\`\`\`html\n<!DOCTYPE html>\n<html lang="tr">\n<head>\n  <meta charset="UTF-8" />\n  <style>\n    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }\n    .box { width: 340px; padding: 24px; border-radius: 16px; background: #1e293b; border: 1px solid #334155; text-align: center; }\n    .score { font-size: 2.25rem; font-weight: 800; margin: 12px 0; color: #38bdf8; font-variant-numeric: tabular-nums; }\n    .actions { display: flex; gap: 8px; justify-content: center; }\n    button { padding: 10px 16px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }\n    button.sec { background: #334155; }\n  </style>\n</head>\n<body>\n  <div class="box">\n    <h3 style="margin:0">Sigma İnteraktif Panel</h3>\n    <div class="score" id="count">0</div>\n    <div class="actions">\n      <button onclick="degistir(1)">+1 Artır</button>\n      <button class="sec" onclick="degistir(-count)">Sıfırla</button>\n    </div>\n  </div>\n  <script>\n    let count = 0;\n    function degistir(d) {\n      count += d;\n      document.getElementById('count').textContent = count;\n    }\n  </script>\n</body>\n</html>\n\`\`\``
+      reply: `Sağ üstteki **Canlı Önizle** butonuna basarak kodu doğrudan yan panelde çalıştırabilirsin:\n\n\`\`\`html\n<!DOCTYPE html>\n<html lang="tr">\n<head>\n  <meta charset="UTF-8" />\n  <style>\n    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }\n    .box { width: 340px; padding: 24px; border-radius: 16px; background: #1e293b; border: 1px solid #334155; text-align: center; }\n    .score { font-size: 2.25rem; font-weight: 800; margin: 12px 0; color: #38bdf8; font-variant-numeric: tabular-nums; }\n    .actions { display: flex; gap: 8px; justify-content: center; }\n    button { padding: 10px 16px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }\n    button.sec { background: #334155; }\n  </style>\n</head>\n<body>\n  <div class="box">\n    <h3 style="margin:0">Sigma İnteraktif Panel</h3>\n    <div class="score" id="count">0</div>\n    <div class="actions">\n      <button onclick="degistir(1)">+1 Artır</button>\n      <button class="sec" onclick="degistir(-count)">Sıfırla</button>\n    </div>\n  </div>\n  <script>\n    let count = 0;\n    function degistir(d) {\n      count += d;\n      document.getElementById('count').textContent = count;\n    }\n  </script>\n</body>\n</html>\n\`\`\``
     };
   }
 

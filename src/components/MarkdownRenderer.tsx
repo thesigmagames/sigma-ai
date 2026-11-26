@@ -108,7 +108,9 @@ const CodeBlock: React.FC<{
 
   const canPreview =
     Boolean(onPreviewCode) &&
-    ['html', 'htm', 'javascript', 'js', 'css', 'svg'].includes(language.toLowerCase());
+    ['html', 'htm', 'javascript', 'js', 'css', 'svg', 'jsx', 'tsx', 'react'].includes(
+      language.toLowerCase()
+    );
 
   return (
     <div className="my-3 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900 text-slate-100">

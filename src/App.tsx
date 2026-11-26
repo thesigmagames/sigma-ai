@@ -15,6 +15,7 @@ import { ToolsStudio } from './components/ToolsStudio';
 import { VoiceDocStudio } from './components/VoiceDocStudio';
 import { CompareStudio } from './components/CompareStudio';
 import { Scene3DStudio } from './components/Scene3DStudio';
+import { CodePreviewDrawer, type PreviewArtifact } from './components/CodePreviewDrawer';
 import {
   AuthModal,
   ConfirmModal,
@@ -205,6 +206,25 @@ function wrapPreviewCode(code: string, language: string): string {
 </html>`;
 }
 
+function extractPreviewableBlock(text: string): { code: string; language: string } | null {
+  if (!text) return null;
+  const regex = /```([a-zA-Z0-9_-]*)\s*\n([\s\S]*?)```/g;
+  const supported = new Set(['html', 'htm', 'svg', 'jsx', 'tsx', 'react', 'css', 'javascript', 'js']);
+  let lastMatch: { code: string; language: string } | null = null;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    const rawLang = (match[1] || '').toLowerCase().trim();
+    const code = (match[2] || '').trim();
+    if (!code) continue;
+    if (supported.has(rawLang)) {
+      lastMatch = { code, language: rawLang };
+    } else if (!rawLang && (/^<!doctype\s+html|^<html\b/i.test(code) || /^<svg\b/i.test(code))) {
+      lastMatch = { code, language: /^<svg\b/i.test(code) ? 'svg' : 'html' };
+    }
+  }
+  return lastMatch;
+}
+
 const SLASH_COMMANDS = [
   { cmd: '/görsel', desc: 'Doğal tariften görsel üret (örn: /görsel maymun muz yiyor)' },
   { cmd: '/kod', desc: 'Yazılım & Kod modunda canlı kod üret' },
@@ -218,7 +238,7 @@ const STARTER_PROMPTS = [
   { label: 'Doğru Görsel Üretimi', text: 'Maymun yap muz yesin' },
   {
     label: 'Canlı HTML Oyunu Yaz',
-    text: 'HTML ve JavaScript ile tek dosyada çalışan mini bir tıklama puan oyunu kodu yaz.'
+    text: 'HTML ve JavaScript ile tek dosyada çalışan mini bir Neon Yıldız Yakalama oyunu kodu yaz.'
   },
   {
     label: 'Web Araştırması & Link',
@@ -346,6 +366,8 @@ export default function App() {
   // Stüdyo görünümü & sohbet yetenekleri
   const [activeView, setActiveView] = useState<StudioView>('chat');
   const [sandboxInitialCode, setSandboxInitialCode] = useState<string | undefined>(undefined);
+  const [previewArtifact, setPreviewArtifact] = useState<PreviewArtifact | null>(null);
+  const [autoOpenPreview, setAutoOpenPreview] = useState<boolean>(true);
   const [deepThinking, setDeepThinking] = useState(false);
   const [webSearch, setWebSearch] = useState(false);
   const [responseLength, setResponseLength] = useState<ResponseLength>('normal');
@@ -1037,6 +1059,22 @@ export default function App() {
         setExpandedThoughts((prev) => ({ ...prev, [aiMsg.id]: true }));
       }
 
+      const extractedBlock = extractPreviewableBlock(finalContent);
+      if (extractedBlock && (autoOpenPreview || previewArtifact)) {
+        const isVisualBlock = ['html', 'htm', 'svg', 'jsx', 'tsx', 'react'].includes(
+          extractedBlock.language.toLowerCase()
+        );
+        if (previewArtifact || isVisualBlock) {
+          setPreviewArtifact({
+            id: `prev_${aiMsg.id}`,
+            title: generateAutoTitle(effectivePrompt) || 'Canlı Kod Önizleme',
+            language: extractedBlock.language,
+            code: extractedBlock.code,
+            updatedAt: Date.now()
+          });
+        }
+      }
+
       const finalMessages = [...workingMessages, aiMsg];
       setChats((prevChats) => {
         const nextChats = prevChats.map((c) =>
@@ -1440,9 +1478,70 @@ export default function App() {
   };
 
   const handlePreviewCode = (code: string, language: string) => {
-    setSandboxInitialCode(wrapPreviewCode(code, language));
-    setActiveView('code');
-    showToast('Kod canlı sandbox önizlemesinde açıldı.', 'info');
+    setPreviewArtifact({
+      id: `prev_${Date.now()}`,
+      title: currentChat.title || 'Canlı Kod Önizleme',
+      language: language || 'html',
+      code,
+      updatedAt: Date.now()
+    });
+    setActiveView('chat');
+    showToast('Canlı önizleme yan panelde açıldı.', 'info');
+  };
+
+  const handleTogglePreviewDrawer = () => {
+    if (previewArtifact && activeView === 'chat') {
+      setPreviewArtifact(null);
+      return;
+    }
+    setActiveView('chat');
+    let found: { code: string; language: string } | null = null;
+    for (let i = currentChat.messages.length - 1; i >= 0; i--) {
+      const m = currentChat.messages[i];
+      if (m.role === 'assistant') {
+        const block = extractPreviewableBlock(m.text);
+        if (block) {
+          found = block;
+          break;
+        }
+      }
+    }
+    if (found) {
+      setPreviewArtifact({
+        id: `prev_${Date.now()}`,
+        title: currentChat.title || 'Canlı Kod Önizleme',
+        language: found.language,
+        code: found.code,
+        updatedAt: Date.now()
+      });
+    } else {
+      setPreviewArtifact({
+        id: `prev_demo_${Date.now()}`,
+        title: 'Sigma AI Canlı Önizleme',
+        language: 'html',
+        code: `<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0b1120; color: #f8fafc; font-family: system-ui, sans-serif; }
+    .card { text-align: center; padding: 28px; border-radius: 18px; border: 1px solid #1e293b; background: #111827; max-width: 380px; }
+    h2 { margin: 0 0 8px; font-size: 20px; }
+    p { margin: 0 0 16px; color: #94a3b8; font-size: 13px; line-height: 1.5; }
+    button { padding: 10px 18px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Canlı Önizleme Alanı</h2>
+    <p>Sohbette HTML, CSS, SVG veya React/JSX kodu ürettiğinizde çıktısı doğrudan burada çalışır.</p>
+    <button type="button" onclick="window._n=(window._n||0)+1; this.textContent='Çalışıyor (' + window._n + ')'; console.log('Test tıklandı:', window._n);">Etkileşimi Test Et</button>
+  </div>
+</body>
+</html>`,
+        updatedAt: Date.now()
+      });
+    }
   };
 
   const lastAiMsgIndex = useMemo(() => {
@@ -1833,8 +1932,22 @@ export default function App() {
             ))}
           </nav>
 
-          {/* Sağ: Tema, Çoklu Aktar, Ayarlar */}
+          {/* Sağ: Önizleme, Tema, Çoklu Aktar, Ayarlar */}
           <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleTogglePreviewDrawer}
+              title="Yan Canlı Kod Önizleme Panelini Aç/Kapat"
+              className={`px-2.5 sm:px-3 py-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                previewArtifact && activeView === 'chat'
+                  ? 'sigma-accent-border sigma-accent-soft sigma-accent-text'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <i className="fa-solid fa-play text-[11px]" />
+              <span className="hidden sm:inline">Önizleme</span>
+            </button>
+
             <button
               type="button"
               onClick={toggleTheme}
@@ -1956,8 +2069,9 @@ export default function App() {
             onNotify={showToast}
           />
         ) : (
-          /* SOHBET ÇALIŞMA ALANI */
-          <>
+          /* SOHBET ÇALIŞMA ALANI + BÖLÜNMÜŞ CANLI ÖNİZLEME */
+          <div className="flex-1 min-h-0 flex overflow-hidden relative">
+            <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
             <div className="shrink-0 px-4 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/70 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
@@ -2015,6 +2129,20 @@ export default function App() {
                 >
                   <i className="fa-solid fa-globe text-[11px]" />
                   <span>Web Arama</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAutoOpenPreview((prev) => !prev)}
+                  title="Üretilen HTML/React kodlarını yan panelde otomatik aç"
+                  className={`px-2.5 py-1 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                    autoOpenPreview
+                      ? 'sigma-accent-border sigma-accent-soft sigma-accent-text'
+                      : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <i className="fa-solid fa-window-restore text-[11px]" />
+                  <span className="hidden sm:inline">Oto-Önizleme</span>
                 </button>
 
                 <select
@@ -2679,7 +2807,28 @@ export default function App() {
                 </div>
               </div>
             </div>
-          </>
+            </div>
+
+            <CodePreviewDrawer
+              artifact={previewArtifact}
+              onUpdateCode={(nextCode) =>
+                setPreviewArtifact((prev) =>
+                  prev ? { ...prev, code: nextCode, updatedAt: Date.now() } : prev
+                )
+              }
+              onOpenInCodeStudio={(wrappedHtml) => {
+                setSandboxInitialCode(wrappedHtml);
+                setActiveView('code');
+                showToast('Tam Kod Stüdyosunda açıldı.', 'info');
+              }}
+              onAskAiToFix={(promptText) => {
+                setActiveView('chat');
+                void sendMessage(false, undefined, promptText);
+              }}
+              onNotify={showToast}
+              onClose={() => setPreviewArtifact(null)}
+            />
+          </div>
         )}
 
         <footer className="shrink-0 px-4 py-1.5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-3 text-[11px]">

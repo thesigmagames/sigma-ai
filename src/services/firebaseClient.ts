@@ -84,21 +84,10 @@ interface FirebaseClientConfig {
 }
 
 function resolveFirebaseConfig(): FirebaseClientConfig | null {
-  try {
-    const localModules = import.meta.glob<{ default: FirebaseClientConfig }>(
-      '../../firebase-applet-config.json',
-      { eager: true }
-    );
-    const localCfg = Object.values(localModules)[0]?.default;
-    if (localCfg && localCfg.apiKey && localCfg.projectId) {
-      return localCfg;
-    }
-  } catch {
-    // Statik GitHub Pages ortamında yerel dosya yoksa env fallback'e geç
-  }
+  const env = import.meta.env || ({} as Record<string, string | undefined>);
 
+  // 1. Ortam değişkenleri veya GitHub Actions Secrets (VITE_FIREBASE_CONFIG_JSON / VITE_FIREBASE_*)
   try {
-    const env = (import.meta as any)?.env || {};
     if (typeof env.VITE_FIREBASE_CONFIG_JSON === 'string' && env.VITE_FIREBASE_CONFIG_JSON.trim()) {
       const parsed = JSON.parse(env.VITE_FIREBASE_CONFIG_JSON) as FirebaseClientConfig;
       if (parsed && parsed.apiKey && parsed.projectId) {
@@ -121,6 +110,23 @@ function resolveFirebaseConfig(): FirebaseClientConfig | null {
   } catch {
     // Env parse error
   }
+
+  // 2. AI Studio geliştirme / sunucu ortamında yerel config (gh-pages statik derlemesine asla gömülmez)
+  if (import.meta.env.MODE !== 'gh-pages') {
+    try {
+      const localModules = import.meta.glob<{ default: FirebaseClientConfig | null }>(
+        '../../firebase-applet-config.json',
+        { eager: true }
+      );
+      const localCfg = Object.values(localModules)[0]?.default;
+      if (localCfg && localCfg.apiKey && localCfg.projectId) {
+        return localCfg;
+      }
+    } catch {
+      // Yerel dosya yoksa devam et
+    }
+  }
+
   return null;
 }
 
