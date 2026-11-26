@@ -271,26 +271,36 @@ export const CodePreviewDrawer: React.FC<CodePreviewDrawerProps> = ({
   return (
     <aside
       aria-label="Canlı Kod Önizleme Paneli"
-      className="fixed inset-0 z-40 lg:static lg:z-auto w-full lg:w-[46%] xl:w-[48%] shrink-0 h-full flex flex-col border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+      className="fixed inset-0 z-50 lg:static lg:z-auto w-full lg:w-[46%] xl:w-[48%] shrink-0 h-full flex flex-col border-l border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md safe-pt safe-pb"
     >
       {/* Üst Başlık & Kontroller */}
       <div className="shrink-0 px-3.5 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-            {artifact.title}
-          </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            <span className="font-mono uppercase">{artifact.language || 'html'}</span>
-            <span aria-hidden="true">·</span>
-            <span className="tabular-nums">{lineCount} satır</span>
-            {errorLogs.length > 0 && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="text-rose-600 dark:text-rose-400 font-semibold">
-                  {errorLogs.length} hata
-                </span>
-              </>
-            )}
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="lg:hidden px-2.5 h-8 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shrink-0 cursor-pointer"
+          >
+            <i className="fa-solid fa-arrow-left text-[11px]" />
+            <span>Sohbet</span>
+          </button>
+          <div className="min-w-0">
+            <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+              {artifact.title}
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="font-mono uppercase">{artifact.language || 'html'}</span>
+              <span aria-hidden="true">·</span>
+              <span className="tabular-nums">{lineCount} satır</span>
+              {errorLogs.length > 0 && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                    {errorLogs.length} hata
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
 

@@ -7,6 +7,7 @@ import {
 import type {
   AccentTheme,
   AiEngineMode,
+  AntigravityIntensity,
   AppLanguage,
   ChatSession,
   CustomApiConfig,
@@ -35,6 +36,8 @@ interface SettingsModalProps {
   onToggleTheme: () => void;
   accentTheme: AccentTheme;
   onChangeAccentTheme: (theme: AccentTheme) => void;
+  bgEffectIntensity: AntigravityIntensity;
+  onChangeBgEffectIntensity: (val: AntigravityIntensity) => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
   customApi: CustomApiConfig;
@@ -82,6 +85,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleTheme,
   accentTheme,
   onChangeAccentTheme,
+  bgEffectIntensity,
+  onChangeBgEffectIntensity,
   soundEnabled,
   onToggleSound,
   customApi,
@@ -177,6 +182,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </span>
                 </button>
               ))}
+            </div>
+
+            <div className="pt-2 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  Antigravity Kozmik Arka Plan Efektleri
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Parçacık & Aurora
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'full' as AntigravityIntensity, label: 'Tam Antigravity' },
+                  { id: 'subtle' as AntigravityIntensity, label: 'Hafif (Pil Dostu)' },
+                  { id: 'off' as AntigravityIntensity, label: 'Kapalı' }
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => onChangeBgEffectIntensity(opt.id)}
+                    className={`px-3 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+                      bgEffectIntensity === opt.id
+                        ? 'sigma-accent-border sigma-accent-soft sigma-accent-text'
+                        : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
 

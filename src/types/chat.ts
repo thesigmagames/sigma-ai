@@ -11,6 +11,7 @@ export type ResponseLength = 'short' | 'normal' | 'detailed';
 export type StudioView = 'chat' | 'voice_doc' | 'compare' | 'image' | 'code' | 'scene3d' | 'debate' | 'tools';
 export type ExportFormat = 'json' | 'md' | 'txt' | 'html';
 export type AccentTheme = 'cobalt' | 'emerald' | 'amber' | 'amethyst';
+export type AntigravityIntensity = 'full' | 'subtle' | 'off';
 
 export interface GroundingSource {
   title: string;

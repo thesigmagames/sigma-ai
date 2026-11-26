@@ -16,6 +16,8 @@ import { VoiceDocStudio } from './components/VoiceDocStudio';
 import { CompareStudio } from './components/CompareStudio';
 import { Scene3DStudio } from './components/Scene3DStudio';
 import { CodePreviewDrawer, type PreviewArtifact } from './components/CodePreviewDrawer';
+import { AntigravityBackdrop } from './components/AntigravityBackdrop';
+import { MobileInstallButton } from './components/MobileInstallPrompt';
 import {
   AuthModal,
   ConfirmModal,
@@ -64,6 +66,7 @@ import { playUiSound } from './services/soundEffects';
 import type {
   AccentTheme,
   AiEngineMode,
+  AntigravityIntensity,
   AppLanguage,
   AttachedImageData,
   ChatFolder,
@@ -83,6 +86,7 @@ import type {
 const PREF_KEYS = {
   THEME: 'sigma_ai_pref_theme',
   ACCENT: 'sigma_ai_pref_accent',
+  BG_EFFECT: 'sigma_ai_pref_bg_effect',
   SOUND: 'sigma_ai_pref_sound',
   MODEL: 'sigma_ai_pref_model',
   ENGINE_MODE: 'sigma_ai_pref_engine_mode',
@@ -332,6 +336,14 @@ export default function App() {
     return 'cobalt';
   });
 
+  const [bgEffectIntensity, setBgEffectIntensity] = useState<AntigravityIntensity>(() => {
+    try {
+      const saved = localStorage.getItem(PREF_KEYS.BG_EFFECT) as AntigravityIntensity | null;
+      if (saved && ['full', 'subtle', 'off'].includes(saved)) return saved;
+    } catch {}
+    return 'full';
+  });
+
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
     try {
       return localStorage.getItem(PREF_KEYS.SOUND) !== 'false';
@@ -387,6 +399,7 @@ export default function App() {
   const [expandedThoughts, setExpandedThoughts] = useState<Record<string, boolean>>({});
   const [isListening, setIsListening] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobileStudiosOpen, setIsMobileStudiosOpen] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [brokenGalleryFallbacks, setBrokenGalleryFallbacks] = useState<Record<string, string>>({});
@@ -1568,11 +1581,28 @@ export default function App() {
     return 'Hibrit (Gemini + Yerel)';
   }, [customApi.enabled, modelStatus, modelProgress, engineMode, activeModel.shortName]);
 
+  const handleChangeBgEffectIntensity = (next: AntigravityIntensity) => {
+    setBgEffectIntensity(next);
+    try {
+      localStorage.setItem(PREF_KEYS.BG_EFFECT, next);
+    } catch {}
+    showToast(
+      next === 'full'
+        ? 'Tam Antigravity kozmik efektleri açık.'
+        : next === 'subtle'
+        ? 'Hafif pil dostu efekt modu aktif.'
+        : 'Arka plan efektleri kapatıldı.',
+      'info'
+    );
+  };
+
   /* ------------------------------------------------------------------------
    * 8. RENDER
    * ---------------------------------------------------------------------- */
   return (
-    <div className="h-screen w-full flex overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="h-app-screen w-full flex overflow-hidden relative bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <AntigravityBackdrop isDark={isDark} accentTheme={accentTheme} intensity={bgEffectIntensity} />
+
       <input ref={importInputRef} type="file" accept="application/json,.json" onChange={importChats} className="hidden" />
       <input
         ref={attachmentInputRef}
@@ -1584,14 +1614,17 @@ export default function App() {
       <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageFileSelect} className="hidden" />
 
       {isSidebarOpen && (
-        <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 z-30 bg-slate-950/50 md:hidden" />
+        <div
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-slate-950/55 backdrop-blur-xs md:hidden"
+        />
       )}
 
       {/* ====================================================================
        * SOL SIDEBAR
        * ================================================================== */}
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-40 w-[276px] shrink-0 flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-transform duration-200 ${
+        className={`fixed md:static inset-y-0 left-0 z-40 w-[276px] shrink-0 flex flex-col bg-white/88 dark:bg-slate-900/86 backdrop-blur-md border-r border-slate-200/80 dark:border-slate-800/80 transition-transform duration-200 safe-pt safe-pb ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
@@ -1847,10 +1880,10 @@ export default function App() {
       {/* ====================================================================
        * ANA ÇALIŞMA ALANI
        * ================================================================== */}
-      <main className="flex-1 flex flex-col min-w-0 h-full">
+      <main className="relative z-10 flex-1 flex flex-col min-w-0 h-full">
         {/* Üst Başlık Çubuğu */}
-        <header className="h-14 shrink-0 px-3 sm:px-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
+        <header className="min-h-14 shrink-0 px-3 sm:px-5 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/82 dark:bg-slate-900/78 backdrop-blur-md flex items-center justify-between gap-2 safe-pt">
+          <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
               onClick={() => setIsSidebarOpen(true)}
@@ -1859,6 +1892,10 @@ export default function App() {
             >
               <i className="fa-solid fa-bars" />
             </button>
+
+            <span className="md:hidden text-sm font-bold tracking-tight text-slate-900 dark:text-white truncate">
+              Sigma AI
+            </span>
 
             <div className="min-w-0 hidden xl:flex items-center gap-2">
               {isRenamingTitle ? (
@@ -1898,10 +1935,10 @@ export default function App() {
             </div>
           </div>
 
-          {/* Orta: Stüdyo Sekmeleri */}
+          {/* Orta: Stüdyo Sekmeleri (Tablet/Masaüstü — Mobilde alt çubuk kullanılır) */}
           <nav
             aria-label="Stüdyo Sekmeleri"
-            className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/90 overflow-x-auto"
+            className="hidden md:flex items-center gap-1 p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/85 overflow-x-auto"
           >
             {[
               { id: 'chat' as StudioView, label: 'Sohbet', icon: 'fa-comments' },
@@ -1932,8 +1969,33 @@ export default function App() {
             ))}
           </nav>
 
-          {/* Sağ: Önizleme, Tema, Çoklu Aktar, Ayarlar */}
+          {/* Sağ: Mobil Yükle, Efekt, Önizleme, Tema, Aktar, Ayarlar */}
           <div className="flex items-center gap-1.5 shrink-0">
+            <MobileInstallButton onNotify={showToast} />
+
+            <button
+              type="button"
+              onClick={() => {
+                const next: AntigravityIntensity =
+                  bgEffectIntensity === 'full'
+                    ? 'subtle'
+                    : bgEffectIntensity === 'subtle'
+                    ? 'off'
+                    : 'full';
+                handleChangeBgEffectIntensity(next);
+              }}
+              title={`Antigravity Arka Plan Efekti (${
+                bgEffectIntensity === 'full' ? 'Tam' : bgEffectIntensity === 'subtle' ? 'Hafif' : 'Kapalı'
+              })`}
+              className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors cursor-pointer ${
+                bgEffectIntensity !== 'off'
+                  ? 'sigma-accent-border sigma-accent-soft sigma-accent-text'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <i className="fa-solid fa-wand-sparkles text-xs" />
+            </button>
+
             <button
               type="button"
               onClick={handleTogglePreviewDrawer}
@@ -1961,7 +2023,7 @@ export default function App() {
               type="button"
               onClick={exportChat}
               title="Sohbetleri Çoklu Formatta Aktar (.txt, .md, .json, .html)"
-              className="px-2.5 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+              className="hidden sm:flex px-2.5 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
             >
               <i className="fa-solid fa-file-export" />
               <span className="hidden sm:inline">Aktar</span>
@@ -2072,7 +2134,7 @@ export default function App() {
           /* SOHBET ÇALIŞMA ALANI + BÖLÜNMÜŞ CANLI ÖNİZLEME */
           <div className="flex-1 min-h-0 flex overflow-hidden relative">
             <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-            <div className="shrink-0 px-4 sm:px-6 py-2 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/70 flex flex-wrap items-center justify-between gap-2">
+            <div className="shrink-0 px-3 sm:px-6 py-2 border-b border-slate-200/75 dark:border-slate-800/75 bg-white/75 dark:bg-slate-900/72 backdrop-blur-md flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
                   <span>Mod:</span>
@@ -2242,7 +2304,7 @@ export default function App() {
             </div>
 
             {/* Mesaj Akış Alanı */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
+            <div className="flex-1 overflow-y-auto touch-scroll px-3.5 sm:px-6 py-5 sm:py-6">
               <div className="max-w-3xl mx-auto space-y-5">
                 {currentChat.messages.length === 0 && !isGenerating ? (
                   <div className="py-8 sm:py-14 space-y-7">
@@ -2662,7 +2724,7 @@ export default function App() {
             </div>
 
             {/* Alt Mesaj Yazma Çubuğu */}
-            <div className="shrink-0 px-4 sm:px-6 pb-4 pt-2 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <div className="shrink-0 px-3 sm:px-6 pb-2.5 sm:pb-4 pt-2 border-t border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/76 backdrop-blur-md">
               <div className="max-w-3xl mx-auto space-y-2 relative">
                 {inputValue.startsWith('/') && !inputValue.includes(' ') && (
                   <div className="absolute bottom-full left-0 right-0 mb-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl p-2 z-20 space-y-1">
@@ -2799,7 +2861,7 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
+                <div className="hidden sm:flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
                   <span>Enter: Gönder · Ctrl+N: Yeni · Ctrl+/: Kısayollar</span>
                   <span>
                     {currentChat.language.toUpperCase()} · {PERSONA_META[currentChat.persona]?.title}
@@ -2831,7 +2893,52 @@ export default function App() {
           </div>
         )}
 
-        <footer className="shrink-0 px-4 py-1.5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-3 text-[11px]">
+        {/* Mobil Alt Gezinme Çubuğu (iOS / Android / HarmonyOS) */}
+        <nav
+          aria-label="Mobil Hızlı Gezinme"
+          className="md:hidden shrink-0 border-t border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md grid grid-cols-5 items-center safe-pb"
+        >
+          {[
+            { id: 'chat' as StudioView, label: 'Sohbet', icon: 'fa-comments' },
+            { id: 'image' as StudioView, label: 'Görsel', icon: 'fa-image' },
+            { id: 'code' as StudioView, label: 'Kod', icon: 'fa-code' },
+            { id: 'voice_doc' as StudioView, label: 'Ses', icon: 'fa-headset' }
+          ].map((item) => {
+            const active = activeView === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  playUiSound('click', soundEnabled);
+                  setActiveView(item.id);
+                  setIsMobileStudiosOpen(false);
+                }}
+                className={`py-2 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold cursor-pointer transition-colors ${
+                  active ? 'sigma-accent-text' : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <i className={`fa-solid ${item.icon} text-sm`} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => setIsMobileStudiosOpen((v) => !v)}
+            className={`py-2 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold cursor-pointer transition-colors ${
+              isMobileStudiosOpen || ['compare', 'scene3d', 'debate', 'tools'].includes(activeView)
+                ? 'sigma-accent-text'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <i className="fa-solid fa-table-cells-large text-sm" />
+            <span>Stüdyolar</span>
+          </button>
+        </nav>
+
+        <footer className="hidden md:flex shrink-0 px-4 py-1.5 border-t border-slate-200/80 dark:border-slate-800/80 bg-white/82 dark:bg-slate-900/78 backdrop-blur-md items-center justify-between gap-3 text-[11px]">
           <span className="text-slate-500 dark:text-slate-400 truncate">
             Sigma AI · The Sigma Games
           </span>
@@ -2839,7 +2946,7 @@ export default function App() {
             href="https://thesigmagames.github.io"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:border-blue-500 dark:hover:border-blue-400 text-slate-700 dark:text-slate-200 font-medium transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-950/90 hover:border-blue-500 dark:hover:border-blue-400 text-slate-700 dark:text-slate-200 font-medium transition-colors shrink-0"
           >
             <i className="fa-solid fa-gamepad sigma-accent-text" />
             <span>Sıkıldın mı? Biraz eğlen</span>
@@ -2848,6 +2955,81 @@ export default function App() {
           </a>
         </footer>
       </main>
+
+      {/* Mobil Stüdyo & Araçlar Çekmecesi */}
+      {isMobileStudiosOpen && (
+        <div
+          onClick={() => setIsMobileStudiosOpen(false)}
+          className="fixed inset-0 z-50 md:hidden bg-slate-950/60 backdrop-blur-xs flex items-end"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4 safe-pb"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-slate-900 dark:text-white">
+                Tüm Sigma AI Stüdyoları
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsMobileStudiosOpen(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { id: 'scene3d' as StudioView, label: '3D Stüdyo', icon: 'fa-cube' },
+                { id: 'compare' as StudioView, label: 'Karşılaştır', icon: 'fa-code-compare' },
+                { id: 'debate' as StudioView, label: 'Münazara', icon: 'fa-scale-balanced' },
+                { id: 'tools' as StudioView, label: 'Araçlar', icon: 'fa-toolbox' }
+              ].map((st) => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveView(st.id);
+                    setIsMobileStudiosOpen(false);
+                  }}
+                  className={`p-3 rounded-xl border text-left flex items-center gap-2.5 text-xs font-semibold cursor-pointer ${
+                    activeView === st.id
+                      ? 'sigma-accent-border sigma-accent-soft sigma-accent-text'
+                      : 'border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200'
+                  }`}
+                >
+                  <i className={`fa-solid ${st.icon} text-sm`} />
+                  <span>{st.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileStudiosOpen(false);
+                  exportChat();
+                }}
+                className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <i className="fa-solid fa-file-export" />
+                <span>Sohbeti Aktar</span>
+              </button>
+              <a
+                href="https://thesigmagames.github.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5"
+              >
+                <i className="fa-solid fa-gamepad sigma-accent-text" />
+                <span>Biraz Eğlen</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ====================================================================
        * MODALLAR & GÖRSEL BÜYÜTEÇ
@@ -2906,6 +3088,8 @@ export default function App() {
           }
           showToast('Vurgu tema paketi uygulandı.', 'success');
         }}
+        bgEffectIntensity={bgEffectIntensity}
+        onChangeBgEffectIntensity={handleChangeBgEffectIntensity}
         soundEnabled={soundEnabled}
         onToggleSound={toggleSound}
         customApi={customApi}
